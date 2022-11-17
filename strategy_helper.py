@@ -15,13 +15,13 @@ def find_momentum(a200: float, a50: float):
 
 def draw_histogram(ticker: str, days: int, equities: pd.DataFrame):
     df = y.get_percentage_changes(ticker, days, equities)
-    df.plot(kind='hist',bins=100)
+    df.plot(kind='hist', bins=100)
     plt.show()
 
 
 def assemble_stock_list(equities: pd.DataFrame, filename: str):
 
-    y.save_history_data(equities["symbol"].to_list(),filename)
+    y.save_history_data(equities["symbol"].to_list(), filename)
     stocks = y.load_history_data(filename)
     stats = y.calc_stats_all(equities["symbol"].array, 5, stocks)
     volatility_df = equities.symbol.apply(lambda x: stats[x]["std"])
@@ -41,6 +41,8 @@ def assemble_stock_list(equities: pd.DataFrame, filename: str):
                 find_momentum(x.get("twoHundredDayAverage"),
                               x.get("fiftyDayAverage"))
         ))
+    result = result.assign(earningsdate=info.apply(
+        lambda x: x.get("earningsDate")))
     return result
 
 

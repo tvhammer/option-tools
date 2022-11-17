@@ -13,7 +13,10 @@ def save_history_data(tickers: list[str], filename: str):
 
 def get_info(ticker: str):
     stock = yf.Ticker(ticker)
-    return stock.info
+    info = stock.info
+    info["earningsDate"] = stock.earnings_dates.index[3] if len(
+        stock.earnings_dates.index) else "N/A"
+    return info
 
 
 def load_history_data(filename: str):
