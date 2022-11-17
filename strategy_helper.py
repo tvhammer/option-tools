@@ -15,7 +15,7 @@ def find_momentum(a200: float, a50: float):
 
 def draw_histogram(ticker: str, days: int, equities: pd.DataFrame):
     df = y.get_percentage_changes(ticker, days, equities)
-    df.plot(kind='hist')
+    df.plot(kind='hist',bins=100)
     plt.show()
 
 
