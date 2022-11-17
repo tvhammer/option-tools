@@ -3,12 +3,12 @@ import pandas as pd
 import math
 
 
-def save_history_data(tickers: list[str]):
+def save_history_data(tickers: list[str], filename: str):
     stocks = yf.download(tickers, period="3y", group_by='ticker')
     if (len(tickers) == 1):
         stocks.columns = pd.MultiIndex.from_product(
             [[tickers[0]], stocks.columns])
-    stocks.to_pickle("history.pk1")
+    stocks.to_pickle(filename)
 
 
 def get_info(ticker: str):
@@ -16,23 +16,26 @@ def get_info(ticker: str):
     return stock.info
 
 
-def load_history_data():
-    return pd.read_pickle("history.pk1")
+def load_history_data(filename: str):
+    return pd.read_pickle(filename)
 
 
-def calc_volatility(ticker: str, days: int, stocks: pd.DataFrame):
+def get_percentage_changes(ticker: str, days: int, stocks: pd.DataFrame):
     stock = stocks[ticker]
-    period_change = 100 * \
+    return 100 * \
         (stock['Close'].shift(-days) - stock['Close']) / stock['Close']
-    return period_change.std()
 
 
-def calc_volatility_all(tickers: list[str], days: int, stocks: pd.DataFrame):
+def calc_stats(ticker: str, days: int, stocks: pd.DataFrame):
+    percentage_changes = get_percentage_changes(ticker, days, stocks)
+    return {"std": percentage_changes.std(), "skew": percentage_changes.skew(), "kurtosis": percentage_changes.kurtosis()}
+
+
+def calc_stats_all(tickers: list[str], days: int, stocks: pd.DataFrame):
 
     result = {}
     for t in tickers:
 
-        std1 = calc_volatility(t, days, stocks)
-        result[t] = {"std1": std1}
+        result[t] = calc_stats(t, days, stocks)
 
     return result
