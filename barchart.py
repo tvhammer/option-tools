@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+import pandas as pd
 
 API_URL = "https://www.barchart.com/options/most-active"
 
@@ -17,7 +18,7 @@ def expand_shadow_element(element, driver):
     return shadow_root
 
 
-def get_liquid(selector):
+def get_liquid(selector: str):
     driver = webdriver.Chrome(options=options)
     driver.get(
         f'{API_URL}/{selector}?orderBy=optionsTotalVolume&orderDir=desc')
@@ -39,7 +40,17 @@ def get_liquid(selector):
         result.append(l)
     driver.quit()
 
-    return result
+    result_df = pd.DataFrame(result)
+
+    result_df['ivr'] = result_df['ivr'].transform(
+        lambda x: x.replace('%', '')).astype(float)
+
+    result_df = result_df[result_df['ivr'] > 55]
+
+    result_df["symbol"] = result_df["symbol"].transform(lambda x: x.replace(
+        '$', '^').replace('^ONE', '^SP100').replace('^IUXX', '^NDX'))
+
+    return result_df
 
 
 def get_liquid_stocks():

@@ -3,22 +3,36 @@ import pandas as pd
 import math
 
 
-def calc_volatility(tickers, days):
-    stocks = yf.download(tickers, period="1y", group_by='ticker')
+def save_history_data(tickers: list[str]):
+    stocks = yf.download(tickers, period="3y", group_by='ticker')
+    if (len(tickers) == 1):
+        stocks.columns = pd.MultiIndex.from_product(
+            [[tickers[0]], stocks.columns])
+    stocks.to_pickle("history.pk1")
 
-    result = []
+
+def get_info(ticker: str):
+    stock = yf.Ticker(ticker)
+    return stock.info
+
+
+def load_history_data():
+    return pd.read_pickle("history.pk1")
+
+
+def calc_volatility(ticker: str, days: int, stocks: pd.DataFrame):
+    stock = stocks[ticker]
+    period_change = 100 * \
+        (stock['Close'].shift(-days) - stock['Close']) / stock['Close']
+    return period_change.std()
+
+
+def calc_volatility_all(tickers: list[str], days: int, stocks: pd.DataFrame):
+
+    result = {}
     for t in tickers:
-        if (len(tickers) == 1):
-            stock = stocks
-        else:
-            stock = stocks[t]
-        stock['daily_returns'] = (stock['Close'].pct_change())*100
 
-        daily_volatility = stock['daily_returns'].std()
-        std1 = math.sqrt(days) * daily_volatility
-        std2 = math.sqrt(days) * daily_volatility*2
-
-        line = {"symbol": t, "std1": std1, "std2": std2}
-        result.append(line)
+        std1 = calc_volatility(t, days, stocks)
+        result[t] = {"std1": std1}
 
     return result
