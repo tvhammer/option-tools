@@ -22,7 +22,6 @@ def get_liquid(selector: str):
     driver = webdriver.Chrome(options=options)
     driver.get(
         f'{API_URL}/{selector}?orderBy=optionsTotalVolume&orderDir=desc')
-    page = driver.page_source
 
     root = driver.find_element(By.TAG_NAME, 'bc-data-grid')
     shadow_root = expand_shadow_element(root, driver)
