@@ -1,8 +1,9 @@
+import time
+
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-import pandas as pd
-import time
 
 API_URL = "https://marketchameleon.com/volReports/VolatilityRankings"
 
@@ -37,5 +38,8 @@ def get_option_list():
     stocks = pd.DataFrame()
     stocks = stocks.assign(symbol=pd.Series(tickers))
     stocks = stocks.assign(ivr=pd.Series(ivrs))
-    return stocks
+    stocks['ivr'] = stocks['ivr'].transform(
+        lambda x: x.replace('%', '')).astype(float)
 
+    stocks = stocks[stocks['ivr'] > 55]
+    return stocks
