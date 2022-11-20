@@ -35,9 +35,13 @@ def get_option_list():
     ivrs = []
     for e in driver.find_elements(By.XPATH, "//table[@id='iv_rankings_report_tbl']//tr//td[10]"):
         ivrs.append(e.text)
+    volumes = []
+    for e in driver.find_elements(By.XPATH, "//table[@id='iv_rankings_report_tbl']//tr//td[12]"):
+        volumes.append(e.text)
     stocks = pd.DataFrame()
     stocks = stocks.assign(symbol=pd.Series(tickers))
     stocks = stocks.assign(ivr=pd.Series(ivrs))
+    stocks = stocks.assign(volume=pd.Series(volumes))
     stocks['ivr'] = stocks['ivr'].transform(
         lambda x: x.replace('%', '')).astype(float)
 

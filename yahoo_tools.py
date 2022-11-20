@@ -60,10 +60,9 @@ def get_option_volume_data(ticker: str):
     put_vol = puts.volume.sum()
     call_oi = calls.openInterest.sum()
     put_oi = puts.openInterest.sum()
-    volume = call_vol + put_vol
     put_call_ratio = put_vol/call_vol
     put_call_oi_ratio = put_oi/call_oi
-    return {"symbol": ticker, "volume": volume, "put_call_ratio": put_call_ratio, "put_call_oi_ratio": put_call_oi_ratio}
+    return {"symbol": ticker, "put_call_ratio": put_call_ratio, "put_call_oi_ratio": put_call_oi_ratio}
 
 
 def get_all_option_volume_data(tickers: list[str]):
@@ -71,6 +70,3 @@ def get_all_option_volume_data(tickers: list[str]):
     for t in tickers:
         matrix.append(get_option_volume_data(t))
     return pd.DataFrame(matrix)
-
-
-#print(get_all_option_volume_data(["MSFT", "AAPL"]))
