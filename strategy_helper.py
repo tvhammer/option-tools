@@ -28,6 +28,8 @@ def assemble_stock_list(equities: pd.DataFrame, filename: str):
 
     result = pd.merge(equities, stats, how='inner')
     info = result.symbol.apply(lambda x: y.get_info(x))
+    result = result.assign(price=info.apply(
+        lambda x: x.get("regularMarketPrice")))
     result = result.assign(
         recommendation=info.apply(lambda x: x.get("recommendationKey")))
     result = result.assign(

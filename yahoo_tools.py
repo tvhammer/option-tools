@@ -19,7 +19,8 @@ def get_info(ticker: str):
     stock = yf.Ticker(ticker)
     info = stock.info
     earnings_dates = stock.earnings_dates
-    info["earningsDate"] = earnings_dates.index[3] if len(
+        
+    info["earningsDate"] = earnings_dates.index[3] if earnings_dates is not None and len(
         earnings_dates.index) > 3 else "N/A"
     return info
 
@@ -62,7 +63,8 @@ def get_option_volume_data(ticker: str):
     put_oi = puts.openInterest.sum()
     put_call_ratio = put_vol/call_vol
     put_call_oi_ratio = put_oi/call_oi
-    return {"symbol": ticker, "put_call_ratio": put_call_ratio, "put_call_oi_ratio": put_call_oi_ratio}
+    vol_yahoo=put_vol+call_vol
+    return {"symbol": ticker, "put_call_ratio": put_call_ratio, "put_call_oi_ratio": put_call_oi_ratio, "vol_yahoo": vol_yahoo}
 
 
 def get_all_option_volume_data(tickers: list[str]):

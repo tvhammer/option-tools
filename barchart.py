@@ -44,7 +44,6 @@ def get_liquid(selector: str):
     result_df['ivr'] = result_df['ivr'].transform(
         lambda x: x.replace('%', '')).astype(float)
 
-    result_df = result_df[result_df['ivr'] > 55]
 
     result_df["symbol"] = result_df["symbol"].transform(lambda x: x.replace(
         '$', '^').replace('^ONE', '^SP100').replace('^IUXX', '^NDX'))

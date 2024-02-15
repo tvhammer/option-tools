@@ -45,5 +45,5 @@ def get_option_list():
     stocks['ivr'] = stocks['ivr'].transform(
         lambda x: x.replace('%', '')).astype(float)
 
-    stocks = stocks[stocks['ivr'] > 55]
+    #stocks = stocks[stocks['ivr'] > 55]
     return stocks
