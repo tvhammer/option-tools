@@ -72,3 +72,20 @@ def get_all_option_volume_data(tickers: list[str]):
     for t in tickers:
         matrix.append(get_option_volume_data(t))
     return pd.DataFrame(matrix)
+
+def fetch_and_sort_tickers_list(ticker_list: list[str]):
+    # Fetch ticker info and store in a list of dictionaries
+    ticker_info_list = [{'ticker': ticker, 'info': yf.Ticker(ticker).info} for ticker in ticker_list]
+
+    # Convert list of dictionaries to DataFrame
+    df = pd.DataFrame(ticker_info_list)
+
+    # Extract averageVolume and sort by it
+    df['averageVolume'] = df['info'].apply(lambda x: x.get('averageVolume', 0))
+    df_sorted = df.sort_values('averageVolume', ascending=False)
+
+    return df_sorted
+
+def fetch_and_sort_tickers(tickers: str):
+    thicker_list = tickers.split(',')
+    return fetch_and_sort_tickers_list(thicker_list)
