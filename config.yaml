@@ -1,0 +1,84 @@
+# Options Strategy Configuration
+# Canonical parameters - all rule values referenced by code
+
+universe:
+  # Liquid ETFs for small account (SPX/NDX/RUT removed - don't fit €100 cap)
+  - SPY
+  - QQQ
+  - IWM
+  # High-IVR stocks for PCS
+  - AAPL
+  - NVDA
+  - META
+  - TSLA
+  - AMD
+  - MARA
+  - PLTR
+  - SMCI
+
+dte_range: [7, 14]              # Min/Max days to expiration for entries
+min_iv_rank: 30                 # Global minimum IV Rank
+max_positions: 2                # Max concurrent positions
+max_loss_per_trade_eur: 100     # Max defined risk per trade (EUR) - 10% of €1000
+account_size_eur: 1000          # Total account size
+
+# Broker selection
+broker: tastytrade              # ib | tastytrade (primary broker for data & execution)
+
+# Commissions (per leg, per side, USD)
+commission:
+  ib: 0.65
+  tastytrade: 1.00              # $1/contract per side (no cap)
+
+# IB Connection (legacy/backup)
+ib_mode: paper                  # paper | live
+ib_port_paper: 4002
+ib_port_live: 4001
+
+# TastyTrade (primary). Credentials are NOT here: see credentials.py / ~/.config/option-tools/.
+#   data   -> profile tasty-prod-read (production, 'read' scope only), used in every mode
+#   orders -> paper: tasty-sandbox, live: tasty-prod-trade
+tastytrade:
+  mode: paper                   # paper | live
+
+# Strategy-specific thresholds
+iron_condor:
+  min_iv_rank: 40
+  target_dte: [7, 14]
+  delta_short: 0.16
+  width_usd: 1.0
+  min_credit_ratio: 0.30
+  profit_target_pct: 0.30
+  close_dte: 2
+  stop_loss_multiple: 1.5
+
+put_credit_spread:
+  min_iv_rank: 35
+  target_dte: [10, 14]
+  delta_short: 0.30
+  width_usd: 1.0
+  min_credit_ratio: 0.30
+  profit_target_pct: 0.50
+  close_dte: 2
+  stop_loss_multiple: 1.5
+  require_uptrend: true
+
+iron_butterfly:
+  min_iv_rank: 50
+  target_dte: [7, 10]
+  max_hv_iv_ratio: 0.80
+  width_usd: 1.0
+  min_credit_ratio: 0.40
+  profit_target_pct: 0.25
+  close_dte: 5
+  stop_loss_multiple: 1.5
+
+# Global management
+force_close_dte: 2
+
+# Data source priorities (first available wins)
+data_sources:
+  - tastytrade
+  - ib
+  - market_chameleon
+  - barchart
