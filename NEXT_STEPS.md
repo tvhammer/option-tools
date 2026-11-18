@@ -120,3 +120,11 @@ _Exit:_ ≥ 2 weeks of paper runs with no false actions, every action explained 
 - Remove the stray `.requirements.txt.swp`, add `.gitignore` (venv, `__pycache__`, `*.db`, `*.log`, `STOP`, `.stepflow/`), and commit option-tools work (still untracked).
 - Rotate the Bitbucket token that was exposed in a debugging session; check that the old GitHub token embedded in the former `~/.gitconfig` is revoked.
 - `requirements.txt`: replace `ib_insync` (unmaintained) with `ib_async` if IB stays; add nothing for tastytrade (plain `requests` is enough).
+
+---
+
+## Slice log
+
+A1 NOT in the tree — the A1 run (dev_feature-flow-2026-11-17T16-34-15-634Z) finished and was approved, but its changes (legs.py, tests/test_legs.py, edits to trade_journal.py and manage.py) were never committed and are gone from the working tree. Re-run slice A1 before A3 (A3 needs `legs.leg_key`). The approved plan is kept in that run's directory under `.stepflow/runs/`.
+
+A2 done — tasty_client.py REST client with OAuth token caching, retries/backoff, error parsing, accounts, quotes, option chains, OCC symbol helpers; 108 tests with fake transport/clock (token, retries, envelopes, quotes batching, OCC, chains, secrets).
