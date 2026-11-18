@@ -1,6 +1,6 @@
 """Guards against silent use of made-up market data or simulated fills."""
 import json, subprocess, sys, tempfile, unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -8,12 +8,14 @@ sys.path.insert(0, str(ROOT))
 
 import trade_journal
 import manage
+import legs
 
 
 def open_trade(**kw):
+    exp = (date.today() + timedelta(days=10)).isoformat()
     legs = [
-        {'type': 'put', 'strike': 440.0, 'action': 'sell', 'qty': 1, 'price': 1.2},
-        {'type': 'put', 'strike': 439.0, 'action': 'buy', 'qty': 1, 'price': 0.6},
+        {'type': 'put', 'strike': 440.0, 'action': 'sell', 'qty': 1, 'price': 1.2, 'expiry': exp},
+        {'type': 'put', 'strike': 439.0, 'action': 'buy', 'qty': 1, 'price': 0.6, 'expiry': exp},
     ]
     t = trade_journal.Trade(entry_date=date.today().isoformat(), strategy='PUT_CREDIT_SPREAD', symbol='SPY',
                             dte=10, iv_rank=50.0, legs_json=json.dumps(legs), credit_received=0.6,
@@ -21,6 +23,12 @@ def open_trade(**kw):
     for k, v in kw.items():
         setattr(t, k, v)
     return trade_journal.save_trade(t)
+
+
+def leg_keys(legs_json):
+    """Return dict of leg_key for each leg in legs_json."""
+    parsed = json.loads(legs_json)
+    return {legs.leg_key(leg): leg for leg in parsed}
 
 
 class NoMockTests(unittest.TestCase):
@@ -52,22 +60,30 @@ class NoMockTests(unittest.TestCase):
 
     def test_missing_quote_is_an_error_not_zero(self):
         t = trade_journal.get_trade(open_trade())
+        keys = leg_keys(t.legs_json)
         with self.assertRaises(manage.MarketDataError):
-            manage.credit_to_close(json.loads(t.legs_json), {'P440.0': 0.5}, t)
+            manage.credit_to_close(json.loads(t.legs_json), {list(keys.keys())[0]: 0.5}, t)
 
     def test_negative_credit_is_an_error(self):
         t = trade_journal.get_trade(open_trade())
+        keys = leg_keys(t.legs_json)
+        key_list = list(keys.keys())
         with self.assertRaises(manage.MarketDataError):
-            manage.credit_to_close(json.loads(t.legs_json), {'P440.0': 0.2, 'P439.0': 0.5}, t)
+            manage.credit_to_close(json.loads(t.legs_json), {key_list[0]: 0.2, key_list[1]: 0.5}, t)
 
     def test_good_quotes_give_credit(self):
         t = trade_journal.get_trade(open_trade())
-        self.assertAlmostEqual(manage.credit_to_close(json.loads(t.legs_json), {'P440.0': 0.5, 'P439.0': 0.2}, t), 0.3)
+        keys = leg_keys(t.legs_json)
+        key_list = list(keys.keys())
+        self.assertAlmostEqual(manage.credit_to_close(json.loads(t.legs_json), {key_list[0]: 0.5, key_list[1]: 0.2}, t), 0.3)
 
     def test_provider_is_used_when_registered(self):
         open_trade()
+        t = trade_journal.get_trade(open_trade())
+        keys = leg_keys(t.legs_json)
+        key_list = list(keys.keys())
         manage.MARKET_DATA_PROVIDERS['tastytrade'] = lambda s, l, m, c: {
-            'underlying_price': 450.0, 'option_mids': {'P440.0': 0.1, 'P439.0': 0.05}, 'option_deltas': {}}
+            'underlying_price': 450.0, 'option_mids': {key_list[0]: 0.1, key_list[1]: 0.05}, 'option_deltas': {}}
         try:
             r = manage.run_evaluation('paper')
         finally:

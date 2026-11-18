@@ -27,6 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from trade_journal import get_open_trades, get_trade, Trade, save_trade, DB_PATH
+from legs import leg_key, trade_dte, all_have_expiry
 import sqlite3
 import yaml
 
@@ -352,8 +353,14 @@ STRATEGY_EVALUATORS = {
 }
 
 
-def leg_key(leg: Dict) -> str:
-    return f"{leg['type'][0].upper()}{leg['strike']}"
+def _remaining_dte(trade: Trade, legs: List[Dict], today: date) -> int:
+    """Return DTE for a trade.
+    If legs have expiries, use trade_dte (minimum leg DTE).
+    Otherwise fall back to stored dte minus elapsed days."""
+    if legs and all_have_expiry(legs):
+        return trade_dte(legs, today)
+    entry_date = datetime.fromisoformat(trade.entry_date).date()
+    return trade.dte - (today - entry_date).days
 
 
 def credit_to_close(legs: List[Dict], mids: Dict[str, float], trade: Trade) -> float:
@@ -380,13 +387,15 @@ def evaluate_position(trade: Trade, market_data: dict, config: dict) -> List[Man
     rules = parse_rules(trade.rules_json)
     
     current_credit = credit_to_close(legs, market_data.get('option_mids', {}), trade)
+    today = date.today()
+    dte = _remaining_dte(trade, legs, today)
 
     pos = Position(
         trade=trade,
         underlying_price=market_data['underlying_price'],
         option_mids=market_data.get('option_mids', {}),
         option_deltas=market_data.get('option_deltas', {}),
-        dte=trade.dte - (date.today() - datetime.fromisoformat(trade.entry_date).date()).days,
+        dte=dte,
         current_credit=current_credit,
         legs=legs,
         rules=rules,
@@ -490,12 +499,12 @@ def run_evaluation(mode: str = 'paper', allow_mock: bool = False) -> dict:
     alerts = reconcile_positions(trades, ib_positions)
 
     all_actions, errors = [], []
+    today = date.today()
     for trade in trades:
         try:
             legs = parse_legs(trade.legs_json)
             market_data = fetch_market_data(trade.symbol, legs, mode, config, allow_mock)
-            entry_date = datetime.fromisoformat(trade.entry_date).date()
-            trade.dte = trade.dte - (date.today() - entry_date).days
+            # DTE is computed inside evaluate_position via _remaining_dte
             all_actions.extend(evaluate_position(trade, market_data, config))
         except MarketDataError as e:
             errors.append(str(e))

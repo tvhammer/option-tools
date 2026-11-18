@@ -1,7 +1,11 @@
 """
 Simple Trade Journal for Options Trading
 SQLite-based, tracks entries, exits, P&L, and strategy adherence.
-All monetary values stored as PER-CONTRACT USD (credit=1.30, max_loss=70, not 0.013/7000).
+
+Units convention (see slices/_CONVENTIONS.md):
+- Option PRICES are per-share as quoted (e.g. credit 1.30). Fields: credit_received, debit_paid,
+  max_loss, max_profit, realized_pnl, leg price. Dollars = price x 100 x contracts.
+- buying_power_used is USD for the whole position.
 """
 import sqlite3
 import pandas as pd
@@ -10,6 +14,7 @@ from dataclasses import dataclass, asdict, fields
 from typing import Optional, List
 from pathlib import Path
 import json
+import legs
 
 
 DB_PATH = Path(__file__).parent / 'trade_journal.db'
@@ -25,12 +30,12 @@ class Trade:
     symbol: str = None
     dte: int = None
     iv_rank: float = None
-    # Legs: JSON list of {'type': 'put/call', 'strike': x, 'action': 'buy/sell', 'qty': 1, 'price': y}
+    # Legs: JSON list of {'type': 'put/call', 'strike': x, 'action': 'buy/sell', 'qty': 1, 'price': y, 'expiry': 'YYYY-MM-DD'}
     legs_json: str = None
-    credit_received: float = None      # PER-CONTRACT USD (e.g., 1.30 = $130/contract)
-    max_loss: float = None             # PER-CONTRACT USD
-    max_profit: float = None           # PER-CONTRACT USD
-    buying_power_used: float = None    # PER-CONTRACT USD (margin requirement)
+    credit_received: float = None      # per share (e.g., 1.30 = $130 per contract)
+    max_loss: float = None             # per share
+    max_profit: float = None           # per share
+    buying_power_used: float = None    # USD for the whole position (margin requirement)
     # Management rules snapshotted at entry
     rules_json: str = None             # JSON of rule params (profit_target_pct, close_dte, stop_loss_multiple, etc.)
     # IB identifiers
@@ -46,8 +51,8 @@ class Trade:
     exit_date: str = None
     exit_reason: str = None  # 'PROFIT_TARGET', 'STOP_LOSS', 'MANAGEMENT_ROLL', 'DTE_FORCE_CLOSE', 'TREND_BREAK', 'IV_CRUSH', 'MANUAL'
     legs_exit_json: str = None
-    debit_paid: float = None           # PER-CONTRACT USD to close
-    realized_pnl: float = None         # PER-CONTRACT USD (net of commissions)
+    debit_paid: float = None           # per share to close
+    realized_pnl: float = None         # per share (net of commissions)
     return_on_capital: float = None    # realized_pnl / buying_power_used
     days_held: int = None
     exit_notes: str = None
@@ -185,7 +190,26 @@ def _ensure_schema_v2(conn):
 
 
 def save_trade(trade: Trade) -> int:
-    """Insert or update trade. Returns trade ID."""
+    """Insert or update trade. Returns trade ID.
+    
+    For open trades (exit_date is None), validates and normalizes legs_json.
+    Raises ValueError if legs are missing, invalid, or lack expiry.
+    Closed trades are saved without leg validation (legacy data)."""
+    # Validate legs for open trades before any DB write
+    if trade.exit_date is None:
+        if not trade.legs_json:
+            raise ValueError(f"{trade.symbol} {trade.strategy}: open trade requires legs_json")
+        try:
+            legs_list = json.loads(trade.legs_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"{trade.symbol} {trade.strategy}: invalid legs_json: {e}") from e
+        
+        normalized = []
+        for leg in legs_list:
+            normalized.append(legs.normalize_leg(leg))
+        legs.validate_legs(normalized, require_expiry=True)
+        trade.legs_json = json.dumps(normalized)
+    
     field_names = _get_field_names()
     with sqlite3.connect(DB_PATH) as conn:
         if trade.id is None:
@@ -233,6 +257,13 @@ def get_closed_trades(limit: int = 100) -> List[Trade]:
             (limit,)
         ).fetchall()
         return [Trade(**dict(r)) for r in rows]
+
+
+def legs_of(trade: Trade) -> list[dict]:
+    """Return parsed legs from trade.legs_json, or [] if None/empty."""
+    if not trade.legs_json:
+        return []
+    return json.loads(trade.legs_json)
 
 
 def get_trades_df(filters: dict = None) -> pd.DataFrame:
@@ -343,6 +374,7 @@ init_db()
 if __name__ == "__main__":
     from datetime import date, timedelta
     
+    exp = (date.today() + timedelta(days=10)).isoformat()
     trade = Trade(
         entry_date=date.today().isoformat(),
         strategy="IRON_CONDOR",
@@ -350,15 +382,15 @@ if __name__ == "__main__":
         dte=10,
         iv_rank=55.0,
         legs_json=json.dumps([
-            {'type': 'put', 'strike': 440, 'action': 'sell', 'qty': 1, 'price': 1.20},
-            {'type': 'put', 'strike': 438, 'action': 'buy', 'qty': 1, 'price': 0.55},
-            {'type': 'call', 'strike': 452, 'action': 'sell', 'qty': 1, 'price': 1.15},
-            {'type': 'call', 'strike': 454, 'action': 'buy', 'qty': 1, 'price': 0.50},
+            {'type': 'put', 'strike': 440, 'action': 'sell', 'qty': 1, 'price': 1.20, 'expiry': exp},
+            {'type': 'put', 'strike': 438, 'action': 'buy', 'qty': 1, 'price': 0.55, 'expiry': exp},
+            {'type': 'call', 'strike': 452, 'action': 'sell', 'qty': 1, 'price': 1.15, 'expiry': exp},
+            {'type': 'call', 'strike': 454, 'action': 'buy', 'qty': 1, 'price': 0.50, 'expiry': exp},
         ]),
-        credit_received=1.30,
-        max_loss=0.70,
-        max_profit=1.30,
-        buying_power_used=70.0,
+        credit_received=1.30,           # per share
+        max_loss=0.70,                  # per share
+        max_profit=1.30,                # per share
+        buying_power_used=70.0,         # USD for whole position
         rules_json=json.dumps({
             'profit_target_pct': 0.30,
             'stop_loss_multiple': 1.5,

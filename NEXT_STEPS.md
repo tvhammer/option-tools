@@ -125,6 +125,6 @@ _Exit:_ ≥ 2 weeks of paper runs with no false actions, every action explained 
 
 ## Slice log
 
-A1 NOT in the tree — the A1 run (dev_feature-flow-2026-11-17T16-34-15-634Z) finished and was approved, but its changes (legs.py, tests/test_legs.py, edits to trade_journal.py and manage.py) were never committed and are gone from the working tree. Re-run slice A1 before A3 (A3 needs `legs.leg_key`). The approved plan is kept in that run's directory under `.stepflow/runs/`.
+A1 done — `legs.py` (validation, normalisation, expiry-aware `leg_key`, leg/trade DTE, front/back split); `save_trade` validates open trades; `manage.py` uses expiry-based DTE and the shared `leg_key`; units convention documented in `trade_journal.py`. (First attempt was lost before commit; redone.)
 
 A2 done — tasty_client.py REST client with OAuth token caching, retries/backoff, error parsing, accounts, quotes, option chains, OCC symbol helpers; 108 tests with fake transport/clock (token, retries, envelopes, quotes batching, OCC, chains, secrets).
